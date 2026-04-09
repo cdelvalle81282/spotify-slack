@@ -179,15 +179,15 @@ def run_forever():
     slack = make_slack_client(cfg)
     state = State()
 
-    while True:
-        try:
-            state = poll_once(spotify, slack, state)
-        except KeyboardInterrupt:
-            log.info("shutting down on KeyboardInterrupt")
-            return
-        except Exception:
-            log.exception("error in poll iteration; continuing")
-        time.sleep(POLL_INTERVAL_SECONDS)
+    try:
+        while True:
+            try:
+                state = poll_once(spotify, slack, state)
+            except Exception:
+                log.exception("error in poll iteration; continuing")
+            time.sleep(POLL_INTERVAL_SECONDS)
+    except KeyboardInterrupt:
+        log.info("shutting down on KeyboardInterrupt")
 
 
 if __name__ == "__main__":

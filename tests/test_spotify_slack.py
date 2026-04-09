@@ -186,3 +186,47 @@ def test_poll_once_stopped_already_cleared_no_call():
 
     slack.users_profile_set.assert_not_called()
     assert new_state.last_cleared is True
+
+
+def test_run_forever_handles_keyboardinterrupt_in_sleep(monkeypatch):
+    """Ctrl+C during time.sleep must exit run_forever cleanly, not raise."""
+    import spotify_slack
+
+    monkeypatch.setattr(spotify_slack, "configure_logging", lambda: None)
+    monkeypatch.setattr(
+        spotify_slack,
+        "load_config",
+        lambda: spotify_slack.Config("cid", "cs", "http://127.0.0.1:8888/callback", "xoxp-t"),
+    )
+    monkeypatch.setattr(spotify_slack, "make_spotify_client", lambda cfg: MagicMock())
+    monkeypatch.setattr(spotify_slack, "make_slack_client", lambda cfg: MagicMock())
+    monkeypatch.setattr(spotify_slack, "poll_once", lambda *a, **k: spotify_slack.State())
+
+    def fake_sleep(_):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(spotify_slack.time, "sleep", fake_sleep)
+
+    # Should return cleanly, not raise
+    spotify_slack.run_forever()
+
+
+def test_run_forever_handles_keyboardinterrupt_in_poll(monkeypatch):
+    """Ctrl+C during poll_once must also exit run_forever cleanly."""
+    import spotify_slack
+
+    monkeypatch.setattr(spotify_slack, "configure_logging", lambda: None)
+    monkeypatch.setattr(
+        spotify_slack,
+        "load_config",
+        lambda: spotify_slack.Config("cid", "cs", "http://127.0.0.1:8888/callback", "xoxp-t"),
+    )
+    monkeypatch.setattr(spotify_slack, "make_spotify_client", lambda cfg: MagicMock())
+    monkeypatch.setattr(spotify_slack, "make_slack_client", lambda cfg: MagicMock())
+
+    def raising_poll(*a, **k):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(spotify_slack, "poll_once", raising_poll)
+
+    spotify_slack.run_forever()

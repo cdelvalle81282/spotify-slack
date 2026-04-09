@@ -2,8 +2,14 @@
 
 from enum import Enum
 
+import logging
+import os
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
+
 MAX_STATUS_LEN = 100
 EMOJI = ":musical_note:"
+LOG_PATH = Path(__file__).parent / "spotify_slack.log"
 
 
 class Action(Enum):
@@ -44,3 +50,18 @@ def build_slack_profile(status_text, status_emoji):
 
 def build_clear_profile():
     return {"status_text": "", "status_emoji": ""}
+
+
+def configure_logging():
+    level = logging.DEBUG if os.environ.get("SPOTIFY_SLACK_DEBUG") == "1" else logging.INFO
+    handler = RotatingFileHandler(LOG_PATH, maxBytes=1_000_000, backupCount=3, encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    root = logging.getLogger()
+    root.setLevel(level)
+    root.handlers.clear()
+    root.addHandler(handler)
+    # Also log to stderr when running interactively
+    stream = logging.StreamHandler()
+    stream.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    root.addHandler(stream)
+    return logging.getLogger("spotify_slack")

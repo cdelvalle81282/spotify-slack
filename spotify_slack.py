@@ -5,6 +5,7 @@ from enum import Enum
 
 import logging
 import os
+import time
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -13,6 +14,7 @@ EMOJI = ":musical_note:"
 LOG_PATH = Path(__file__).parent / "spotify_slack.log"
 SPOTIFY_SCOPE = "user-read-currently-playing"
 SPOTIFY_CACHE_PATH = Path(__file__).parent / ".spotify_cache"
+POLL_INTERVAL_SECONDS = 60
 
 log = logging.getLogger("spotify_slack")
 
@@ -167,3 +169,26 @@ def configure_logging():
     stream.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
     root.addHandler(stream)
     return logging.getLogger("spotify_slack")
+
+
+def run_forever():
+    configure_logging()
+    log.info("starting spotify_slack")
+    cfg = load_config()
+    spotify = make_spotify_client(cfg)
+    slack = make_slack_client(cfg)
+    state = State()
+
+    while True:
+        try:
+            state = poll_once(spotify, slack, state)
+        except KeyboardInterrupt:
+            log.info("shutting down on KeyboardInterrupt")
+            return
+        except Exception:
+            log.exception("error in poll iteration; continuing")
+        time.sleep(POLL_INTERVAL_SECONDS)
+
+
+if __name__ == "__main__":
+    run_forever()

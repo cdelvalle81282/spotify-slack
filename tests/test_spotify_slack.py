@@ -59,3 +59,20 @@ def test_decide_action_stopped_not_cleared():
 def test_decide_action_stopped_already_cleared():
     action = decide_action(current_id=None, last_id=None, is_playing=False, last_cleared=True)
     assert action == Action.SKIP
+
+
+from spotify_slack import build_slack_profile, build_clear_profile
+
+
+def test_build_slack_profile_basic():
+    profile = build_slack_profile("Song — Artist", ":musical_note:")
+    assert profile == {
+        "status_text": "Song — Artist",
+        "status_emoji": ":musical_note:",
+        "status_expiration": 0,
+    }
+
+
+def test_build_clear_profile():
+    profile = build_clear_profile()
+    assert profile == {"status_text": "", "status_emoji": ""}

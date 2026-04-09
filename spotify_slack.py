@@ -32,3 +32,15 @@ def format_status(track):
     if len(text) > MAX_STATUS_LEN:
         text = text[: MAX_STATUS_LEN - 1] + "…"
     return text, EMOJI
+
+
+def build_slack_profile(status_text, status_emoji):
+    return {
+        "status_text": status_text,
+        "status_emoji": status_emoji,
+        "status_expiration": 0,
+    }
+
+
+def build_clear_profile():
+    return {"status_text": "", "status_emoji": ""}

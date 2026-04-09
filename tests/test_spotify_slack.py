@@ -76,3 +76,28 @@ def test_build_slack_profile_basic():
 def test_build_clear_profile():
     profile = build_clear_profile()
     assert profile == {"status_text": "", "status_emoji": ""}
+
+
+import pytest
+from spotify_slack import Config, load_config, ConfigError
+
+
+def test_load_config_reads_env(monkeypatch):
+    monkeypatch.setenv("SPOTIFY_CLIENT_ID", "cid")
+    monkeypatch.setenv("SPOTIFY_CLIENT_SECRET", "csecret")
+    monkeypatch.setenv("SPOTIFY_REDIRECT_URI", "http://127.0.0.1:8888/callback")
+    monkeypatch.setenv("SLACK_USER_TOKEN", "xoxp-test")
+    cfg = load_config()
+    assert cfg == Config(
+        spotify_client_id="cid",
+        spotify_client_secret="csecret",
+        spotify_redirect_uri="http://127.0.0.1:8888/callback",
+        slack_user_token="xoxp-test",
+    )
+
+
+def test_load_config_raises_on_missing(monkeypatch):
+    for var in ("SPOTIFY_CLIENT_ID", "SPOTIFY_CLIENT_SECRET", "SLACK_USER_TOKEN"):
+        monkeypatch.delenv(var, raising=False)
+    with pytest.raises(ConfigError):
+        load_config()

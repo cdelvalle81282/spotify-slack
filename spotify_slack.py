@@ -1,5 +1,6 @@
 """Spotify → Slack status updater."""
 
+from dataclasses import dataclass
 from enum import Enum
 
 import logging
@@ -50,6 +51,39 @@ def build_slack_profile(status_text, status_emoji):
 
 def build_clear_profile():
     return {"status_text": "", "status_emoji": ""}
+
+
+class ConfigError(RuntimeError):
+    pass
+
+
+@dataclass(frozen=True)
+class Config:
+    spotify_client_id: str
+    spotify_client_secret: str
+    spotify_redirect_uri: str
+    slack_user_token: str
+
+
+def load_config():
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent / ".env")
+    required = {
+        "SPOTIFY_CLIENT_ID": os.environ.get("SPOTIFY_CLIENT_ID"),
+        "SPOTIFY_CLIENT_SECRET": os.environ.get("SPOTIFY_CLIENT_SECRET"),
+        "SLACK_USER_TOKEN": os.environ.get("SLACK_USER_TOKEN"),
+    }
+    missing = [k for k, v in required.items() if not v]
+    if missing:
+        raise ConfigError(f"Missing required env vars: {', '.join(missing)}")
+    return Config(
+        spotify_client_id=required["SPOTIFY_CLIENT_ID"],
+        spotify_client_secret=required["SPOTIFY_CLIENT_SECRET"],
+        spotify_redirect_uri=os.environ.get(
+            "SPOTIFY_REDIRECT_URI", "http://127.0.0.1:8888/callback"
+        ),
+        slack_user_token=required["SLACK_USER_TOKEN"],
+    )
 
 
 def configure_logging():

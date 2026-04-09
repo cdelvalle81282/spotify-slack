@@ -101,3 +101,18 @@ def test_load_config_raises_on_missing(monkeypatch):
         monkeypatch.delenv(var, raising=False)
     with pytest.raises(ConfigError):
         load_config()
+
+
+def test_config_repr_redacts_secrets():
+    cfg = Config(
+        spotify_client_id="real_client_id",
+        spotify_client_secret="real_client_secret",
+        spotify_redirect_uri="http://127.0.0.1:8888/callback",
+        slack_user_token="xoxp-real-token",
+    )
+    rendered = repr(cfg)
+    assert "real_client_id" not in rendered
+    assert "real_client_secret" not in rendered
+    assert "xoxp-real-token" not in rendered
+    assert "<redacted>" in rendered
+    assert "http://127.0.0.1:8888/callback" in rendered

@@ -64,6 +64,14 @@ class Config:
     spotify_redirect_uri: str
     slack_user_token: str
 
+    def __repr__(self):
+        return (
+            "Config(spotify_client_id=<redacted>, "
+            "spotify_client_secret=<redacted>, "
+            f"spotify_redirect_uri={self.spotify_redirect_uri!r}, "
+            "slack_user_token=<redacted>)"
+        )
+
 
 def load_config():
     from dotenv import load_dotenv

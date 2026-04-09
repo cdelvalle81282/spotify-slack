@@ -116,7 +116,7 @@ def make_spotify_client(cfg):
         redirect_uri=cfg.spotify_redirect_uri,
         scope=SPOTIFY_SCOPE,
         cache_path=str(SPOTIFY_CACHE_PATH),
-        open_browser=False,
+        open_browser=True,
     )
     return Spotify(auth_manager=auth)
 

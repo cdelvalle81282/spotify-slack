@@ -97,6 +97,9 @@ def test_load_config_reads_env(monkeypatch):
 
 
 def test_load_config_raises_on_missing(monkeypatch):
+    import dotenv
+    # Prevent a real .env file on disk from leaking into this test
+    monkeypatch.setattr(dotenv, "load_dotenv", lambda *a, **k: None)
     for var in ("SPOTIFY_CLIENT_ID", "SPOTIFY_CLIENT_SECRET", "SLACK_USER_TOKEN"):
         monkeypatch.delenv(var, raising=False)
     with pytest.raises(ConfigError):

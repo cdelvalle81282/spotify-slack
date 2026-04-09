@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Secrets & state
+.env
+.spotify_cache
+spotify_slack.log
+spotify_slack.log.*
+
+# IDE
+.vscode/
+.idea/

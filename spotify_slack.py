@@ -11,6 +11,8 @@ from pathlib import Path
 MAX_STATUS_LEN = 100
 EMOJI = ":musical_note:"
 LOG_PATH = Path(__file__).parent / "spotify_slack.log"
+SPOTIFY_SCOPE = "user-read-currently-playing"
+SPOTIFY_CACHE_PATH = Path(__file__).parent / ".spotify_cache"
 
 
 class Action(Enum):
@@ -92,6 +94,26 @@ def load_config():
         ),
         slack_user_token=required["SLACK_USER_TOKEN"],
     )
+
+
+def make_spotify_client(cfg):
+    from spotipy import Spotify
+    from spotipy.oauth2 import SpotifyOAuth
+
+    auth = SpotifyOAuth(
+        client_id=cfg.spotify_client_id,
+        client_secret=cfg.spotify_client_secret,
+        redirect_uri=cfg.spotify_redirect_uri,
+        scope=SPOTIFY_SCOPE,
+        cache_path=str(SPOTIFY_CACHE_PATH),
+        open_browser=False,
+    )
+    return Spotify(auth_manager=auth)
+
+
+def make_slack_client(cfg):
+    from slack_sdk import WebClient
+    return WebClient(token=cfg.slack_user_token)
 
 
 def configure_logging():

@@ -116,3 +116,73 @@ def test_config_repr_redacts_secrets():
     assert "xoxp-real-token" not in rendered
     assert "<redacted>" in rendered
     assert "http://127.0.0.1:8888/callback" in rendered
+
+
+from unittest.mock import MagicMock
+from spotify_slack import State, poll_once
+
+
+def _playing(track_id, name="Song", artists=("Artist",)):
+    return {
+        "is_playing": True,
+        "item": {
+            "id": track_id,
+            "name": name,
+            "artists": [{"name": a} for a in artists],
+        },
+    }
+
+
+def test_poll_once_new_track_updates_slack():
+    spotify = MagicMock()
+    slack = MagicMock()
+    spotify.current_user_playing_track.return_value = _playing("abc")
+    state = State()
+
+    new_state = poll_once(spotify, slack, state)
+
+    slack.users_profile_set.assert_called_once()
+    profile = slack.users_profile_set.call_args.kwargs["profile"]
+    assert profile["status_text"] == "Song — Artist"
+    assert profile["status_emoji"] == ":musical_note:"
+    assert new_state.last_track_id == "abc"
+    assert new_state.last_cleared is False
+
+
+def test_poll_once_same_track_no_call():
+    spotify = MagicMock()
+    slack = MagicMock()
+    spotify.current_user_playing_track.return_value = _playing("abc")
+    state = State(last_track_id="abc", last_cleared=False)
+
+    new_state = poll_once(spotify, slack, state)
+
+    slack.users_profile_set.assert_not_called()
+    assert new_state == state
+
+
+def test_poll_once_stopped_clears_once():
+    spotify = MagicMock()
+    slack = MagicMock()
+    spotify.current_user_playing_track.return_value = None
+    state = State(last_track_id="abc", last_cleared=False)
+
+    new_state = poll_once(spotify, slack, state)
+
+    slack.users_profile_set.assert_called_once_with(
+        profile={"status_text": "", "status_emoji": ""}
+    )
+    assert new_state.last_cleared is True
+    assert new_state.last_track_id is None
+
+
+def test_poll_once_stopped_already_cleared_no_call():
+    spotify = MagicMock()
+    slack = MagicMock()
+    spotify.current_user_playing_track.return_value = None
+    state = State(last_track_id=None, last_cleared=True)
+
+    new_state = poll_once(spotify, slack, state)
+
+    slack.users_profile_set.assert_not_called()
+    assert new_state.last_cleared is True

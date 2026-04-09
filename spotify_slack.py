@@ -14,6 +14,8 @@ LOG_PATH = Path(__file__).parent / "spotify_slack.log"
 SPOTIFY_SCOPE = "user-read-currently-playing"
 SPOTIFY_CACHE_PATH = Path(__file__).parent / ".spotify_cache"
 
+log = logging.getLogger("spotify_slack")
+
 
 class Action(Enum):
     UPDATE = "update"
@@ -75,6 +77,12 @@ class Config:
         )
 
 
+@dataclass(frozen=True)
+class State:
+    last_track_id: str | None = None
+    last_cleared: bool = False
+
+
 def load_config():
     from dotenv import load_dotenv
     load_dotenv(Path(__file__).parent / ".env")
@@ -114,6 +122,36 @@ def make_spotify_client(cfg):
 def make_slack_client(cfg):
     from slack_sdk import WebClient
     return WebClient(token=cfg.slack_user_token)
+
+
+def poll_once(spotify_client, slack_client, state):
+    """Run one iteration of the polling loop. Returns the new state."""
+    current = spotify_client.current_user_playing_track()
+    current_id = None
+    is_playing = False
+    if current and current.get("is_playing") and current.get("item"):
+        current_id = current["item"]["id"]
+        is_playing = True
+
+    action = decide_action(
+        current_id=current_id,
+        last_id=state.last_track_id,
+        is_playing=is_playing,
+        last_cleared=state.last_cleared,
+    )
+
+    if action == Action.UPDATE:
+        text, emoji = format_status(current["item"])
+        slack_client.users_profile_set(profile=build_slack_profile(text, emoji))
+        log.info("status updated: %s", text)
+        return State(last_track_id=current_id, last_cleared=False)
+
+    if action == Action.CLEAR:
+        slack_client.users_profile_set(profile=build_clear_profile())
+        log.info("status cleared")
+        return State(last_track_id=None, last_cleared=True)
+
+    return state
 
 
 def configure_logging():

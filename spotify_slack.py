@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from enum import Enum
 
+import datetime
 import logging
 import os
 import time
@@ -15,6 +16,8 @@ LOG_PATH = Path(__file__).parent / "spotify_slack.log"
 SPOTIFY_SCOPE = "user-read-currently-playing"
 SPOTIFY_CACHE_PATH = Path(__file__).parent / ".spotify_cache"
 POLL_INTERVAL_SECONDS = 60
+ACTIVE_START_HOUR = 6   # 6 AM
+ACTIVE_END_HOUR = 18    # 6 PM
 
 log = logging.getLogger("spotify_slack")
 
@@ -126,9 +129,18 @@ def make_slack_client(cfg):
     return WebClient(token=cfg.slack_user_token)
 
 
+def _is_active_hours():
+    """Return True if the current local time is within active hours."""
+    hour = datetime.datetime.now().hour
+    return ACTIVE_START_HOUR <= hour < ACTIVE_END_HOUR
+
+
 def poll_once(spotify_client, slack_client, state):
     """Run one iteration of the polling loop. Returns the new state."""
-    current = spotify_client.current_user_playing_track()
+    if not _is_active_hours():
+        current = None
+    else:
+        current = spotify_client.current_user_playing_track()
     current_id = None
     is_playing = False
     if current and current.get("is_playing") and current.get("item"):

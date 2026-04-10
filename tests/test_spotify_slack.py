@@ -136,7 +136,13 @@ def _playing(track_id, name="Song", artists=("Artist",)):
     }
 
 
-def test_poll_once_new_track_updates_slack():
+def _force_active_hours(monkeypatch):
+    import spotify_slack
+    monkeypatch.setattr(spotify_slack, "_is_active_hours", lambda: True)
+
+
+def test_poll_once_new_track_updates_slack(monkeypatch):
+    _force_active_hours(monkeypatch)
     spotify = MagicMock()
     slack = MagicMock()
     spotify.current_user_playing_track.return_value = _playing("abc")
@@ -152,7 +158,8 @@ def test_poll_once_new_track_updates_slack():
     assert new_state.last_cleared is False
 
 
-def test_poll_once_same_track_no_call():
+def test_poll_once_same_track_no_call(monkeypatch):
+    _force_active_hours(monkeypatch)
     spotify = MagicMock()
     slack = MagicMock()
     spotify.current_user_playing_track.return_value = _playing("abc")
@@ -164,7 +171,8 @@ def test_poll_once_same_track_no_call():
     assert new_state == state
 
 
-def test_poll_once_stopped_clears_once():
+def test_poll_once_stopped_clears_once(monkeypatch):
+    _force_active_hours(monkeypatch)
     spotify = MagicMock()
     slack = MagicMock()
     spotify.current_user_playing_track.return_value = None
@@ -179,7 +187,8 @@ def test_poll_once_stopped_clears_once():
     assert new_state.last_track_id is None
 
 
-def test_poll_once_stopped_already_cleared_no_call():
+def test_poll_once_stopped_already_cleared_no_call(monkeypatch):
+    _force_active_hours(monkeypatch)
     spotify = MagicMock()
     slack = MagicMock()
     spotify.current_user_playing_track.return_value = None
@@ -189,6 +198,24 @@ def test_poll_once_stopped_already_cleared_no_call():
 
     slack.users_profile_set.assert_not_called()
     assert new_state.last_cleared is True
+
+
+def test_poll_once_outside_active_hours_clears_status(monkeypatch):
+    import spotify_slack
+    monkeypatch.setattr(spotify_slack, "_is_active_hours", lambda: False)
+    spotify = MagicMock()
+    slack = MagicMock()
+    state = State(last_track_id="abc", last_cleared=False)
+
+    new_state = poll_once(spotify, slack, state)
+
+    # Should clear status without even calling Spotify
+    spotify.current_user_playing_track.assert_not_called()
+    slack.users_profile_set.assert_called_once_with(
+        profile={"status_text": "", "status_emoji": ""}
+    )
+    assert new_state.last_cleared is True
+    assert new_state.last_track_id is None
 
 
 def test_run_forever_handles_keyboardinterrupt_in_sleep(monkeypatch):
